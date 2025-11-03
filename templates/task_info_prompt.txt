@@ -1,0 +1,109 @@
+<task>
+Extract information about the last task from Claude Code session log
+</task>
+
+<critical_output_requirements>
+**You MUST strictly follow these output rules:**
+1. Output ONLY a JSON object, nothing else
+2. Do NOT output analysis process, thinking steps, explanatory text, or any comments
+3. Do NOT use markdown code blocks (no ```json wrapper)
+4. Output raw JSON text directly
+5. Ensure JSON format is valid and parseable
+</critical_output_requirements>
+
+<instructions>
+The user will provide a Claude Code session log (JSONL format). You need to:
+1. Analyze the log content and find the last user request (user message)
+2. Extract all Claude responses and tool calls after that request
+3. Determine the final execution result comprehensively
+4. Ignore all previous historical tasks and conversations
+</instructions>
+
+<extraction_fields>
+<field name="task_name">
+  <description>Describe the task name concisely in Chinese</description>
+  <constraint>No more than 10 Chinese characters</constraint>
+  <examples>
+    - "创建 React 组件"
+    - "修复登录 bug"
+    - "优化数据库查询"
+  </examples>
+</field>
+
+<field name="task_status">
+  <description>Determine status based on execution result</description>
+  <options>
+    <option value="SUCCESS">
+      - Task completed, all operations executed successfully
+      - No errors or exceptions
+    </option>
+    <option value="FAILED">
+      - Task failed, errors or exceptions occurred
+      - Claude explicitly indicated unable to complete
+    </option>
+    <option value="IN_PROGRESS">
+      - Task partially completed
+      - Requires further user action or confirmation
+    </option>
+  </options>
+</field>
+
+<field name="task_details">
+  <description>Task details using structured format</description>
+  <format>
+    First line: Brief summary (one sentence summarizing the core content and result)
+    Empty line
+    After that: Ordered list (concise key points)
+    - Use "1. ", "2. ", "3. " format
+    - Each item should be concise and clear, no more than one line
+    - Include only the most important business information, avoid redundancy
+  </format>
+  <include>
+    - Core business logic and actual modifications of the task
+    - Key files created/modified and their purposes
+    - Important feature implementations or code changes
+    - Error messages or issues (if any)
+  </include>
+  <exclude>
+    ❌ Do NOT include the following:
+    - Git operation steps (e.g., "stage changes", "create commit", "push to remote")
+    - File system operations (e.g., "create directory", "move file")
+    - Tool invocation processes (e.g., "run test command", "execute build script")
+    - Status check steps (e.g., "check working directory status", "verify file exists")
+    - Other technical execution details that are not the core content of the task
+  </exclude>
+  <constraints>
+    - Summary: no more than 30 Chinese characters
+    - Ordered list should be concise, typically 3-5 items, maximum 10 items
+    - Each item: no more than 50 Chinese characters
+    - Prioritize quality over quantity, only list information meaningful for understanding the task itself
+  </constraints>
+</field>
+</extraction_fields>
+
+<json_schema>
+{
+  "task_name": "string (max 10 Chinese chars)",
+  "task_status": "SUCCESS|FAILED|IN_PROGRESS",
+  "task_details": "string (format: summary + newline + ordered list)"
+}
+</json_schema>
+
+<output_examples>
+<good_example>
+{"task_name":"本地化通知模板","task_status":"SUCCESS","task_details":"将通知模板翻译为中文并优化格式。\n\n1. 翻译通知字段标签（任务、状态、分支、设备、时间）\n2. 转换任务状态值为中文（成功/失败/进行中/存在问题）\n3. 简化通知标题并优化格式可读性"}
+</good_example>
+
+<bad_example>
+{"task_name":"本地化通知模板","task_status":"SUCCESS","task_details":"将通知模板本地化为中文，成功创建 git commit。\n\n1. 添加所有更改到暂存区\n2. 创建 commit，标题为 'chore: localize notification template to Chinese'\n3. 翻译通知字段标签为中文\n4. 转换任务状态值为中文\n5. 简化通知标题\n6. 提交成功，工作目录干净"}
+
+Explanation: This example is bad because it includes git operation steps (1, 2, 6), which are technical details rather than the core content of the task.
+</bad_example>
+</output_examples>
+
+<final_reminder>
+⚠️ Emphasizing again:
+1. Output JSON object directly without any other text, explanations, analysis process, or markdown markers
+2. task_details MUST include summary and ordered list
+3. Ordered list should be concise and focused, containing only the core business content of the task, excluding technical execution details
+</final_reminder>

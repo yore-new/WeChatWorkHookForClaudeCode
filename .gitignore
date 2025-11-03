@@ -1,0 +1,34 @@
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.nfs*
+
+# Editor files
+*.swp
+*.swo
+*.bak
+.vscode/
+.idea/
+*.sublime-*
+
+# Sensitive configuration (real webhook URLs, keys)
+.env
+config.local.sh
+*.secret
+*.key
+
+# Test output
+test_output/
+*.test.json
