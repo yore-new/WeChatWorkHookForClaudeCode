@@ -33,7 +33,23 @@ A hook script for Claude Code that automatically sends WeChat Work (企业微信
 
 ## Installation
 
-### 1. Configure Environment Variables
+### 1. Clone the Repository
+
+Clone this project to Claude Code's hooks directory:
+
+```bash
+# Create hooks directory if it doesn't exist
+mkdir -p ~/.claude/hooks
+
+# Clone the repository
+cd ~/.claude/hooks
+git clone https://github.com/yore-new/WeChatWorkHookForClaudeCode.git
+cd WeChatWorkHookForClaudeCode
+```
+
+> **Note**: The hook configuration examples in this README assume the project is located at `~/.claude/hooks/WeChatWorkHookForClaudeCode/`. If you install it elsewhere, adjust the paths accordingly.
+
+### 2. Configure Environment Variables
 
 Copy the example configuration file:
 
@@ -60,7 +76,7 @@ Or add to your shell profile (`~/.bashrc` / `~/.zshrc`):
 export CLAUDE_HOOK_WECHAT_URL="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
 ```
 
-### 2. Install Dependencies
+### 3. Install Dependencies
 
 ```bash
 # macOS
@@ -73,15 +89,53 @@ sudo apt-get install jq
 # Follow instructions at https://docs.claude.com/en/docs/claude-code/overview
 ```
 
-### 3. Configure Claude Code Hooks
+### 4. Configure Claude Code Hooks
 
-Add the hook to your Claude Code configuration file:
+Add the hook to your Claude Code configuration file (`~/.claude/settings.json`):
+
+#### Recommended: Use Stop Event (for long-running tasks)
 
 ```json
 {
   "hooks": {
-    "SessionEnd": "/path/to/wechat-bot/hook.sh",
-    "Stop": "/path/to/wechat-bot/hook.sh"
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/WeChatWorkHookForClaudeCode/hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **Why Stop instead of SessionEnd?**
+> - **Stop** triggers when Claude completes each response - perfect for long-running task notifications
+> - **SessionEnd** only triggers when you explicitly `/clear` or exit - rarely happens during normal development workflow
+> - For real-world usage, you typically start a long task, get notified when it's done, then continue working without ending the session
+
+#### Alternative: Use SessionEnd (for session summaries)
+
+Only use this if you want notifications when explicitly ending sessions:
+
+```json
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/WeChatWorkHookForClaudeCode/hook.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -100,6 +154,70 @@ After configuration, notifications will be automatically sent when:
   - Other session end reasons
 
 > For more information about hooks, see the [Claude Code Hooks Documentation](https://docs.claude.com/en/docs/claude-code/hooks)
+
+### Best Practices for Real-World Usage
+
+#### Scenario 1: Daily Development (Quick Interactions)
+
+For normal, quick development sessions where you don't need notifications:
+
+```bash
+# Add to your ~/.zshrc or ~/.bashrc to disable by default
+export CLAUDE_HOOK_DISABLE=1
+```
+
+This prevents notification spam during regular coding sessions.
+
+#### Scenario 2: Long-Running Tasks
+
+When starting a task that will take significant time (refactoring, large analysis, etc.):
+
+**Option A: Enable for current shell session**
+```bash
+# Temporarily enable notifications
+unset CLAUDE_HOOK_DISABLE
+
+# Work with Claude...
+# You'll get notified when task completes
+
+# Disable again when done
+export CLAUDE_HOOK_DISABLE=1
+```
+
+**Option B: Enable for single command**
+```bash
+# Only enable for this specific session
+CLAUDE_HOOK_DISABLE=0 claude
+```
+
+#### Scenario 3: Recommended Workflow
+
+```bash
+# 1. Start your day with notifications disabled (in your shell profile)
+export CLAUDE_HOOK_DISABLE=1
+
+# 2. When you need a long-running task notification
+unset CLAUDE_HOOK_DISABLE
+
+# 3. Start the task in Claude Code
+# "Please analyze this entire codebase and refactor the authentication module"
+
+# 4. Go do something else (coffee, meetings, other work)
+
+# 5. Get WeChat Work notification when Claude completes → Stop event triggers
+
+# 6. Come back and review the results
+
+# 7. Continue working or disable notifications again
+export CLAUDE_HOOK_DISABLE=1
+```
+
+#### Why This Approach Works
+
+- ✅ **Stop event** catches task completion without requiring `/clear` or exit
+- ✅ Typical workflow: start task → Claude finishes → you continue the conversation
+- ✅ **SessionEnd** would miss this completely (only triggers on explicit session termination)
+- ✅ Use `CLAUDE_HOOK_DISABLE` to control when you want notifications
 
 ### Manual Testing
 
@@ -202,8 +320,28 @@ Modify your Claude Code hook configuration:
 ```json
 {
   "hooks": {
-    "SessionEnd": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1",
-    "Stop": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1"
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1"
+          }
+        ]
+      }
+    ]
   }
 }
 ```

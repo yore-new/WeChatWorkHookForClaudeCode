@@ -33,7 +33,23 @@
 
 ## 安装配置
 
-### 1. 配置环境变量
+### 1. 克隆项目
+
+将本项目克隆到 Claude Code 的 hooks 目录：
+
+```bash
+# 如果 hooks 目录不存在，先创建
+mkdir -p ~/.claude/hooks
+
+# 克隆仓库
+cd ~/.claude/hooks
+git clone https://github.com/yore-new/WeChatWorkHookForClaudeCode.git
+cd WeChatWorkHookForClaudeCode
+```
+
+> **注意**：本 README 中的 hook 配置示例假设项目位于 `~/.claude/hooks/WeChatWorkHookForClaudeCode/`。如果你安装在其他位置，请相应调整路径。
+
+### 2. 配置环境变量
 
 复制示例配置文件：
 
@@ -60,7 +76,7 @@ source .env
 export CLAUDE_HOOK_WECHAT_URL="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
 ```
 
-### 2. 安装依赖
+### 3. 安装依赖
 
 ```bash
 # macOS
@@ -73,15 +89,53 @@ sudo apt-get install jq
 # 访问 https://docs.claude.com/en/docs/claude-code/overview 查看安装说明
 ```
 
-### 3. 配置 Claude Code Hooks
+### 4. 配置 Claude Code Hooks
 
-在 Claude Code 配置文件中添加 hook：
+在 Claude Code 配置文件（`~/.claude/settings.json`）中添加 hook：
+
+#### 推荐配置：使用 Stop 事件（用于长时间任务通知）
 
 ```json
 {
   "hooks": {
-    "SessionEnd": "/path/to/wechat-bot/hook.sh",
-    "Stop": "/path/to/wechat-bot/hook.sh"
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/WeChatWorkHookForClaudeCode/hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **为什么用 Stop 而不是 SessionEnd？**
+> - **Stop** 在 Claude 每次完成回答时触发 - 适合长时间任务完成通知
+> - **SessionEnd** 只在你主动执行 `/clear` 或退出时触发 - 在正常开发流程中很少发生
+> - 实际使用中，你通常是：启动长任务 → 收到完成通知 → 继续对话，而不会结束会话
+
+#### 备选配置：使用 SessionEnd（用于会话总结）
+
+只有在需要会话结束时才收到通知时使用此配置：
+
+```json
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.claude/hooks/WeChatWorkHookForClaudeCode/hook.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -100,6 +154,70 @@ sudo apt-get install jq
   - 其他会话结束原因
 
 > 更多关于 hooks 的信息，请参考 [Claude Code Hooks 官方文档](https://docs.claude.com/en/docs/claude-code/hooks)
+
+### 实际使用场景最佳实践
+
+#### 场景 1：日常开发（快速交互）
+
+对于正常的、快速的开发会话，不需要通知时：
+
+```bash
+# 在 ~/.zshrc 或 ~/.bashrc 中添加，默认禁用通知
+export CLAUDE_HOOK_DISABLE=1
+```
+
+这样可以避免在日常编码时被通知打扰。
+
+#### 场景 2：长时间运行的任务
+
+当启动一个需要较长时间的任务时（重构、大型分析等）：
+
+**方式 A：为当前 shell 会话启用**
+```bash
+# 临时启用通知
+unset CLAUDE_HOOK_DISABLE
+
+# 使用 Claude 工作...
+# 任务完成时会收到通知
+
+# 完成后再次禁用
+export CLAUDE_HOOK_DISABLE=1
+```
+
+**方式 B：仅为单次命令启用**
+```bash
+# 只为这个特定会话启用通知
+CLAUDE_HOOK_DISABLE=0 claude
+```
+
+#### 场景 3：推荐工作流
+
+```bash
+# 1. 在 shell 配置文件中默认禁用通知
+export CLAUDE_HOOK_DISABLE=1
+
+# 2. 当需要长时间任务通知时
+unset CLAUDE_HOOK_DISABLE
+
+# 3. 在 Claude Code 中启动任务
+# "请分析整个代码库并重构认证模块"
+
+# 4. 去做其他事情（喝咖啡、开会、处理其他工作）
+
+# 5. Claude 完成时收到企业微信通知 → Stop 事件触发
+
+# 6. 回来查看结果
+
+# 7. 继续工作或再次禁用通知
+export CLAUDE_HOOK_DISABLE=1
+```
+
+#### 为什么这种方式有效
+
+- ✅ **Stop 事件**无需 `/clear` 或退出即可捕获任务完成
+- ✅ 典型工作流：启动任务 → Claude 完成 → 你继续对话
+- ✅ **SessionEnd** 会完全错过这种场景（只在明确终止会话时触发）
+- ✅ 使用 `CLAUDE_HOOK_DISABLE` 控制何时需要通知
 
 ### 手动测试
 
@@ -202,8 +320,28 @@ Hook 日志同时输出到 stdout 和 stderr。保存日志用于调试：
 ```json
 {
   "hooks": {
-    "SessionEnd": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1",
-    "Stop": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1"
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/wechat-bot/hook.sh >> /path/to/hook.log 2>&1"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
