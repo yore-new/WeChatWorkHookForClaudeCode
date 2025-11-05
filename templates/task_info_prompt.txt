@@ -59,6 +59,7 @@ The user will provide a Claude Code session log (JSONL format). You need to:
     - Include only the most important business information, avoid redundancy
   </format>
   <include>
+    - Actual outputs and deliverables (e.g., generated messages, created documents, final results)
     - Core business logic and actual modifications of the task
     - Key files created/modified and their purposes
     - Important feature implementations or code changes
@@ -66,10 +67,13 @@ The user will provide a Claude Code session log (JSONL format). You need to:
   </include>
   <exclude>
     ❌ Do NOT include the following:
+    - Model's processing steps (e.g., "analyze branch changes", "check code", "review files")
+    - Model's generation process (e.g., "generate commit message", "create documentation", "draft response")
     - Git operation steps (e.g., "stage changes", "create commit", "push to remote")
     - File system operations (e.g., "create directory", "move file")
     - Tool invocation processes (e.g., "run test command", "execute build script")
     - Status check steps (e.g., "check working directory status", "verify file exists")
+    - Any workflow or procedural descriptions of how the task was completed
     - Other technical execution details that are not the core content of the task
   </exclude>
   <constraints>
@@ -90,15 +94,25 @@ The user will provide a Claude Code session log (JSONL format). You need to:
 </json_schema>
 
 <output_examples>
-<good_example>
+<good_example_1>
 {"task_name":"本地化通知模板","task_status":"SUCCESS","task_details":"将通知模板翻译为中文并优化格式。\n\n1. 翻译通知字段标签（任务、状态、分支、设备、时间）\n2. 转换任务状态值为中文（成功/失败/进行中/存在问题）\n3. 简化通知标题并优化格式可读性"}
-</good_example>
+</good_example_1>
 
-<bad_example>
+<good_example_2>
+{"task_name":"生成合并消息","task_status":"SUCCESS","task_details":"为 czx/spec-dev 分支生成 squash merge 消息。\n\n1. 提交类型：test (添加 HTTP 客户端测试和重构 LLM 抽象)\n2. HTTPClient 接口：统一客户端抽象，支持超时配置和请求头\n3. LLM 模块重构：简化 API 调用，改进错误处理\n4. 测试覆盖：HTTP 客户端单元测试和集成测试"}
+</good_example_2>
+
+<bad_example_1>
 {"task_name":"本地化通知模板","task_status":"SUCCESS","task_details":"将通知模板本地化为中文，成功创建 git commit。\n\n1. 添加所有更改到暂存区\n2. 创建 commit，标题为 'chore: localize notification template to Chinese'\n3. 翻译通知字段标签为中文\n4. 转换任务状态值为中文\n5. 简化通知标题\n6. 提交成功，工作目录干净"}
 
 Explanation: This example is bad because it includes git operation steps (1, 2, 6), which are technical details rather than the core content of the task.
-</bad_example>
+</bad_example_1>
+
+<bad_example_2>
+{"task_name":"生成合并消息","task_status":"SUCCESS","task_details":"为 czx/spec-dev 分支生成 squash merge 提交消息。\n\n1. 分析分支变更内容，包括 HTTP 客户端接口、LLM 抽象层重构、单元测试等\n2. 生成规范的提交消息，类型为 test，标题为添加 HTTP 客户端测试和重构 LLM 抽象\n3. 消息正文列出关键改进点：HTTPClient 接口、统一客户端抽象、测试覆盖率、集成测试和文档"}
+
+Explanation: This example is bad because it describes the model's processing workflow (1: "analyze", 2: "generate") rather than the actual output content. Users care about what the squash message contains, not how it was created.
+</bad_example_2>
 </output_examples>
 
 <final_reminder>
